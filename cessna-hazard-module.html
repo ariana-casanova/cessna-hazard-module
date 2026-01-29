@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cessna 172 Hazard Identification Module</title>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background-color: #0a1628;
+            color: #e0e0e0;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Blueprint grid background */
+        .blueprint-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(30, 90, 150, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(30, 90, 150, 0.1) 1px, transparent 1px),
+                linear-gradient(rgba(30, 90, 150, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(30, 90, 150, 0.05) 1px, transparent 1px);
+            background-size: 100px 100px, 100px 100px, 20px 20px, 20px 20px;
+            z-index: -1;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            padding: 30px 20px;
+            border-bottom: 2px solid #1e5a96;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: clamp(1.5rem, 4vw, 2.5rem);
+            color: #4da6ff;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            text-shadow: 0 0 20px rgba(77, 166, 255, 0.5);
+        }
+
+        .header p {
+            margin-top: 10px;
+            color: #7ab8ed;
+            font-size: 1.1rem;
+        }
+
+        /* Instructions */
+        .instructions {
+            background: rgba(30, 90, 150, 0.1);
+            border: 1px solid #1e5a96;
+            border-radius: 8px;
+            padding: 15px 20px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .instructions p {
+            color: #a0c4e8;
+            font-size: 1rem;
+        }
+
+        /* Aircraft Display Area */
+        .aircraft-container {
+            position: relative;
+            width: 100%;
+            max-width: 900px;
+            margin: 0 auto 40px;
+            aspect-ratio: 16/9;
+            background: rgba(10, 22, 40, 0.8);
+            border: 2px solid #1e5a96;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .aircraft-svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Clickable parts styling */
+        .aircraft-part {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .aircraft-part:hover {
+            filter: drop-shadow(0 0 15px #4da6ff);
+        }
+
+        .aircraft-part:hover .part-fill {
+            fill: rgba(77, 166, 255, 0.3);
+        }
+
+        .part-outline {
+            fill: none;
+            stroke: #4da6ff;
+            stroke-width: 2;
+        }
+
+        .part-fill {
+            fill: rgba(77, 166, 255, 0.1);
+            transition: fill 0.3s ease;
+        }
+
+        .part-label {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 12px;
+            fill: #7ab8ed;
+            pointer-events: none;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: linear-gradient(135deg, #0d1f35 0%, #0a1628 100%);
+            border: 2px solid #1e5a96;
+            border-radius: 16px;
+            max-width: 600px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+            animation: modalSlide 0.3s ease;
+        }
+
+        @keyframes modalSlide {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            background: rgba(30, 90, 150, 0.2);
+            padding: 20px 25px;
+            border-bottom: 1px solid #1e5a96;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            font-family: 'Share Tech Mono', monospace;
+            color: #4da6ff;
+            font-size: 1.5rem;
+            text-transform: uppercase;
+        }
+
+        .close-btn {
+            background: none;
+            border: 2px solid #ff4d4d;
+            color: #ff4d4d;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .close-btn:hover {
+            background: #ff4d4d;
+            color: white;
+        }
+
+        .modal-body {
+            padding: 25px;
+        }
+
+        .part-diagram {
+            width: 100%;
+            height: 200px;
+            background: rgba(30, 90, 150, 0.1);
+            border: 1px solid #1e5a96;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .part-diagram svg {
+            max-width: 90%;
+            max-height: 90%;
+        }
+
+        .info-section {
+            margin-bottom: 20px;
+        }
+
+        .info-section h3 {
+            color: #4da6ff;
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .info-section h3::before {
+            content: '';
+            width: 4px;
+            height: 20px;
+            background: #4da6ff;
+            border-radius: 2px;
+        }
+
+        .info-section p, .info-section ul {
+            color: #c0d8f0;
+            line-height: 1.6;
+        }
+
+        .info-section ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .info-section ul li {
+            padding: 8px 0;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .info-section ul li::before {
+            content: '▸';
+            position: absolute;
+            left: 0;
+            color: #4da6ff;
+        }
+
+        .hazard-box {
+            background: rgba(255, 77, 77, 0.1);
+            border: 1px solid #ff4d4d;
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .hazard-box h3 {
+            color: #ff4d4d;
+        }
+
+        .hazard-box h3::before {
+            background: #ff4d4d;
+        }
+
+        .hazard-box ul li::before {
+            color: #ff4d4d;
+        }
+
+        /* Parts Legend */
+        .legend {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 30px;
+        }
+
+        .legend-item {
+            background: rgba(30, 90, 150, 0.1);
+            border: 1px solid #1e5a96;
+            border-radius: 8px;
+            padding: 12px 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .legend-item:hover {
+            background: rgba(30, 90, 150, 0.3);
+            border-color: #4da6ff;
+            transform: translateY(-2px);
+        }
+
+        .legend-item span {
+            font-family: 'Share Tech Mono', monospace;
+            color: #7ab8ed;
+            font-size: 0.9rem;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 30px;
+            margin-top: 40px;
+            border-top: 1px solid #1e5a96;
+        }
+
+        .footer p {
+            color: #5a8bb8;
+            font-size: 0.9rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+
+            .header {
+                padding: 20px 15px;
+            }
+
+            .modal {
+                margin: 10px;
+                max-height: 85vh;
+            }
+
+            .modal-header {
+                padding: 15px 20px;
+            }
+
+            .modal-body {
+                padding: 20px;
+            }
+
+            .part-diagram {
+                height: 150px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="blueprint-bg"></div>
+    
+    <div class="container">
+        <header class="header">
+            <h1>✈ Cessna 172 Hazard Identification</h1>
+            <p>Interactive Aircraft Safety Learning Module</p>
+        </header>
+
+        <div class="instructions">
+            <p>👆 Click on any highlighted part of the aircraft to learn about its components and associated hazards.</p>
+        </div>
+
+        <div class="aircraft-container">
+            <svg class="aircraft-svg" viewBox="0 0 800 450" preserveAspectRatio="xMidYMid meet">
+                <!-- Aircraft Body/Fuselage -->
+                <g class="aircraft-part" data-part="fuselage" onclick="openModal('fuselage')">
+                    <path class="part-fill" d="M180,225 L220,200 L580,200 L620,220 L620,250 L580,270 L220,270 L180,245 Z"/>
+                    <path class="part-outline" d="M180,225 L220,200 L580,200 L620,220 L620,250 L580,270 L220,270 L180,245 Z"/>
+                    <text class="part-label" x="380" y="240">FUSELAGE</text>
+                </g>
+
+                <!-- Wing -->
+                <g class="aircraft-part" data-part="wing" onclick="openModal('wing')">
+                    <path class="part-fill" d="M280,235 L320,120 L360,120 L380,235 L380,245 L360,245 L340,160 L300,160 L280,245 Z"/>
+                    <path class="part-outline" d="M280,235 L320,120 L360,120 L380,235"/>
+                    <path class="part-fill" d="M280,235 L320,350 L360,350 L380,235 L380,245 L360,245 L340,310 L300,310 L280,245 Z"/>
+                    <path class="part-outline" d="M280,245 L320,350 L360,350 L380,245"/>
+                    <text class="part-label" x="285" y="115">WING</text>
+                </g>
+
+                <!-- Propeller -->
+                <g class="aircraft-part" data-part="propeller" onclick="openModal('propeller')">
+                    <ellipse class="part-fill" cx="160" cy="235" rx="15" ry="70"/>
+                    <ellipse class="part-outline" cx="160" cy="235" rx="15" ry="70"/>
+                    <circle class="part-fill" cx="160" cy="235" r="12"/>
+                    <circle class="part-outline" cx="160" cy="235" r="12"/>
+                    <text class="part-label" x="120" y="320">PROPELLER</text>
+                </g>
+
+                <!-- Engine Cowling -->
+                <g class="aircraft-part" data-part="engine" onclick="openModal('engine')">
+                    <path class="part-fill" d="M170,210 L220,200 L220,270 L170,260 L160,245 L160,225 Z"/>
+                    <path class="part-outline" d="M170,210 L220,200 L220,270 L170,260 L160,245 L160,225 Z"/>
+                    <text class="part-label" x="175" y="195">ENGINE</text>
+                </g>
+
+                <!-- Horizontal Stabilizer / Tail -->
+                <g class="aircraft-part" data-part="tail" onclick="openModal('tail')">
+                    <!-- Horizontal Stabilizer -->
+                    <path class="part-fill" d="M580,230 L620,180 L650,180 L660,230 L660,240 L650,290 L620,290 L580,240 Z"/>
+                    <path class="part-outline" d="M580,230 L620,180 L650,180 L660,230 L660,240 L650,290 L620,290 L580,240 Z"/>
+                    <!-- Vertical Stabilizer -->
+                    <path class="part-fill" d="M590,200 L610,130 L640,130 L650,180 L620,180 L590,200 Z"/>
+                    <path class="part-outline" d="M590,200 L610,130 L640,130 L650,180 L620,180"/>
+                    <text class="part-label" x="610" y="125">TAIL</text>
+                </g>
+
+                <!-- Landing Gear -->
+                <g class="aircraft-part" data-part="landing-gear" onclick="openModal('landing-gear')">
+                    <!-- Nose Gear -->
+                    <rect class="part-fill" x="200" y="270" width="8" height="40"/>
+                    <rect class="part-outline" x="200" y="270" width="8" height="40"/>
+                    <ellipse class="part-fill" cx="204" cy="315" rx="12" ry="8"/>
+                    <ellipse class="part-outline" cx="204" cy="315" rx="12" ry="8"/>
+                    <!-- Main Gear -->
+                    <rect class="part-fill" x="340" y="270" width="8" height="50"/>
+                    <rect class="part-outline" x="340" y="270" width="8" height="50"/>
+                    <ellipse class="part-fill" cx="344" cy="325" rx="15" ry="10"/>
+                    <ellipse class="part-outline" cx="344" cy="325" rx="15" ry="10"/>
+                    <text class="part-label" x="280" y="345">LANDING GEAR</text>
+                </g>
+
+                <!-- Dimension Lines (decorative) -->
+                <line x1="150" y1="380" x2="670" y2="380" stroke="#1e5a96" stroke-width="1" stroke-dasharray="5,5"/>
+                <text x="400" y="400" fill="#1e5a96" font-family="Share Tech Mono" font-size="11" text-anchor="middle">WINGSPAN: 36 ft 1 in (11.00 m)</text>
+                
+                <line x1="700" y1="130" x2="700" y2="330" stroke="#1e5a96" stroke-width="1" stroke-dasharray="5,5"/>
+                <text x="720" y="235" fill="#1e5a96" font-family="Share Tech Mono" font-size="11" writing-mode="vertical-rl">LENGTH: 27 ft 2 in</text>
+            </svg>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item" onclick="openModal('propeller')">
+                <span>01 — PROPELLER</span>
+            </div>
+            <div class="legend-item" onclick="openModal('engine')">
+                <span>02 — ENGINE</span>
+            </div>
+            <div class="legend-item" onclick="openModal('fuselage')">
+                <span>03 — FUSELAGE</span>
+            </div>
+            <div class="legend-item" onclick="openModal('wing')">
+                <span>04 — WING</span>
+            </div>
+            <div class="legend-item" onclick="openModal('tail')">
+                <span>05 — TAIL SECTION</span>
+            </div>
+            <div class="legend-item" onclick="openModal('landing-gear')">
+                <span>06 — LANDING GEAR</span>
+            </div>
+        </div>
+
+        <footer class="footer">
+            <p>Interactive Aircraft Hazard Identification Module — BSAMT Thesis Project</p>
+            <p>National Aviation Academy of the Philippines</p>
+        </footer>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h2 id="modalTitle">Part Name</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="part-diagram" id="partDiagram"></div>
+                <div class="info-section">
+                    <h3>Description</h3>
+                    <p id="partDescription"></p>
+                </div>
+                <div class="info-section">
+                    <h3>Key Components</h3>
+                    <ul id="partComponents"></ul>
+                </div>
+                <div class="info-section hazard-box">
+                    <h3>⚠ Safety Hazards</h3>
+                    <ul id="partHazards"></ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const partsData = {
+            propeller: {
+                title: "Propeller Assembly",
+                description: "The propeller converts rotational energy from the engine into thrust. The Cessna 172 uses a two-blade fixed-pitch or constant-speed propeller made of aluminum alloy or composite materials.",
+                components: [
+                    "Propeller Blades (2)",
+                    "Propeller Hub / Spinner",
+                    "Blade Root & Tip",
+                    "Leading Edge",
+                    "Trailing Edge"
+                ],
+                hazards: [
+                    "ROTATING BLADE DANGER — Never approach a running propeller. Blades can cause fatal injuries.",
+                    "PROP STRIKE RISK — Always assume propeller could move unexpectedly.",
+                    "SHARP EDGES — Blade edges can cause cuts during inspection.",
+                    "CARBON FIBER HAZARDS — Composite props can produce harmful dust when damaged."
+                ],
+                diagram: `<svg viewBox="0 0 200 150">
+                    <ellipse cx="100" cy="75" rx="10" ry="60" fill="none" stroke="#4da6ff" stroke-width="2"/>
+                    <circle cx="100" cy="75" r="15" fill="none" stroke="#4da6ff" stroke-width="2"/>
+                    <text x="130" y="30" fill="#7ab8ed" font-size="10">BLADE TIP</text>
+                    <line x1="110" y1="20" x2="125" y2="28" stroke="#7ab8ed"/>
+                    <text x="130" y="80" fill="#7ab8ed" font-size="10">HUB</text>
+                    <line x1="115" y1="75" x2="125" y2="78" stroke="#7ab8ed"/>
+                    <text x="130" y="130" fill="#7ab8ed" font-size="10">BLADE ROOT</text>
+                    <line x1="110" y1="130" x2="125" y2="128" stroke="#7ab8ed"/>
+                </svg>`
+            },
+            engine: {
+                title: "Engine Compartment",
+                description: "The Cessna 172 is powered by a Lycoming IO-360 four-cylinder, horizontally opposed, air-cooled engine producing 180 horsepower. The engine is housed in the forward cowling.",
+                components: [
+                    "Lycoming IO-360 Engine",
+                    "Engine Cowling",
+                    "Oil System (Sump, Filter, Cooler)",
+                    "Fuel System (Carburetor/Fuel Injection)",
+                    "Ignition System (Magnetos, Spark Plugs)",
+                    "Exhaust System"
+                ],
+                hazards: [
+                    "HOT SURFACES — Engine and exhaust can exceed 400°F. Risk of severe burns.",
+                    "FUEL HAZARDS — Avgas is highly flammable. No smoking, no sparks.",
+                    "MOVING PARTS — Belts, pulleys, and propeller shaft can cause entanglement.",
+                    "CARBON MONOXIDE — Exhaust leaks can cause CO poisoning in enclosed areas.",
+                    "HIGH VOLTAGE — Magnetos generate high voltage even with battery off."
+                ],
+                diagram: `<svg viewBox="0 0 200 150">
+                    <rect x="40" y="40" width="120" height="70" rx="5" fill="none" stroke="#4da6ff" stroke-width="2"/>
+                    <circle cx="70" cy="75" r="15" fill="none" stroke="#4da6ff" stroke-width="1"/>
+                    <circle cx="130" cy="75" r="15" fill="none" stroke="#4da6ff" stroke-width="1"/>
+                    <text x="60" y="100" fill="#7ab8ed" font-size="8">CYLINDERS</text>
+                    <rect x="85" y="55" width="30" height="40" fill="none" stroke="#4da6ff" stroke-width="1"/>
+                    <text x="88" y="130" fill="#7ab8ed" font-size="8">CRANKCASE</text>
+                </svg>`
+            },
+            fuselage: {
+                title: "Fuselage Structure",
+                description: "The fuselage is the main body of the aircraft, constructed using semi-monocoque aluminum design. It houses the cockpit, cabin, and provides attachment points for wings, tail, and landing gear.",
+                components: [
+                    "Cockpit / Flight Deck",
+                    "Cabin Area (4 seats)",
+                    "Firewall",
+                    "Bulkheads & Stringers",
+                    "Skin Panels (Aluminum)",
+                    "Windows & Doors"
+                ],
+                hazards: [
+                    "SHARP METAL EDGES — Sheet metal seams and access panels can cause cuts.",
+                    "CONFINED SPACE — Limited movement inside during maintenance.",
+                    "ELECTRICAL HAZARDS — Wiring runs through fuselage; risk of shock.",
+                    "CONTROL CABLES — Pinch points where cables route through fuselage.",
+                    "DOOR HAZARDS — Heavy doors can slam unexpectedly in wind."
+                ],
+                diagram: `<svg viewBox="0 0 200 150">
+                    <path d="M20,75 L50,55 L150,55 L180,70 L180,80 L150,95 L50,95 L20,75 Z" fill="none" stroke="#4da6ff" stroke-width="2"/>
+                    <line x1="70" y1="55" x2="70" y2="95" stroke="#4da6ff" stroke-width="1" stroke-dasharray="3,3"/>
+                    <text x="55" y="110" fill="#7ab8ed" font-size="8">FIREWALL</text>
+                    <rect x="90" y="60" width="25" height="15" fill="none" stroke="#4da6ff" stroke-width="1"/>
+                    <text x="85" y="50" fill="#7ab8ed" font-size="8">WINDOWS</text>
+                </svg>`
+            },
+            wing: {
+                title: "Wing Assembly",
+                description: "The Cessna 172 features a high-wing, strut-braced design. Wings are constructed of aluminum alloy with a main spar, ribs, and stressed skin. They contain fuel tanks and support the flaps and ailerons.",
+                components: [
+                    "Main Spar & Rear Spar",
+                    "Wing Ribs",
+                    "Leading Edge",
+                    "Trailing Edge",
+                    "Ailerons",
+                    "Flaps",
+                    "Fuel Tanks (Integral)",
+                    "Wing Struts"
+                ],
+                hazards: [
+                    "FUEL EXPOSURE — Wings contain fuel tanks. Avoid sparks, use proper PPE.",
+                    "FALL HAZARD — Working on high-wing requires ladder; fall risk.",
+                    "CONTROL SURFACE MOVEMENT — Ailerons/flaps can move unexpectedly.",
+                    "STRUT ATTACHMENT — High-stress area; improper handling can cause injury.",
+                    "STATIC ELECTRICITY — Fuel can generate static; always ground aircraft."
+                ],
+                diagram: `<svg viewBox="0 0 200 150">
+                    <path d="M30,75 L60,20 L140,20 L170,75 L140,80 L60,80 Z" fill="none" stroke="#4da6ff" stroke-width="2"/>
+                    <line x1="50" y1="75" x2="80" y2="30" stroke="#4da6ff" stroke-width="1" stroke-dasharray="3,3"/>
+                    <text x="45" y="90" fill="#7ab8ed" font-size="8">SPAR</text>
+                    <rect x="140" y="50" width="25" height="10" fill="none" stroke="#4da6ff" stroke-width="1"/>
+                    <text x="135" y="45" fill="#7ab8ed" font-size="8">AILERON</text>
+                    <text x="85" y="130" fill="#7ab8ed" font-size="8">FUEL TANK AREA</text>
+                </svg>`
+            },
+            tail: {
+                title: "Empennage (Tail Section)",
+                description: "The empennage includes the vertical stabilizer (with rudder) and horizontal stabilizer (with elevator). These provide directional and pitch stability and control for the aircraft.",
+                components: [
+                    "Vertical Stabilizer (Fin)",
+                    "Rudder",
+                    "Horizontal Stabilizer",
+                    "Elevator",
+                    "Trim Tab",
+                    "Control Cables & Hinges"
+                ],
+                hazards: [
+                    "CONTROL SURFACE MOVEMENT — Rudder and elevator can move suddenly.",
+                    "PINCH POINTS — Hinges and control horns can trap fingers.",
+                    "WORKING AT HEIGHT — Vertical stabilizer requires ladder access.",
+                    "CABLE TENSION — Control cables under tension; can snap or cause injury.",
+                    "TIE-DOWN DAMAGE — Improper securing can stress tail structure."
+                ],
+                diagram: `<svg viewBox="0 0 200 150">
+                    <path d="M80,120 L100,40 L130,40 L140,80 L140,120 Z" fill="none" stroke="#4da6ff" stroke-width="2"/>
+                    <path d="M60,90 L80,60 L160,60 L180,90 L160,95 L80,95 Z" fill="none" stroke="#4da6ff" stroke-width="2"/>
+                    <text x="105" y="35" fill="#7ab8ed" font-size="8">VERTICAL STAB</text>
+                    <text x="100" y="110" fill="#7ab8ed" font-size="8">HORIZONTAL STAB</text>
+                    <line x1="140" y1="75" x2="160" y2="75" stroke="#ff4d4d" stroke-width="2"/>
+                    <text x="145" y="55" fill="#ff4d4d" font-size="7">RUDDER</text>
+                </svg>`
+            },
+            "landing-gear": {
+                title: "Landing Gear System",
+                description: "The Cessna 172 uses a fixed tricycle landing gear configuration with a steerable nose wheel and two main wheels. The gear is designed to absorb landing loads and provide ground handling stability.",
+                components: [
+                    "Nose Gear Strut",
+                    "Nose Wheel & Tire",
+                    "Main Gear Struts",
+                    "Main Wheels & Tires",
+                    "Brake Assembly (Main Gear)",
+                    "Wheel Fairings (Optional)"
+                ],
+                hazards: [
+                    "CRUSHING HAZARD — Never place body parts under aircraft without proper jacking.",
+                    "BRAKE FLUID — Hydraulic fluid is toxic and flammable; avoid skin contact.",
+                    "TIRE PRESSURE — Over-inflated tires can explode; check pressure carefully.",
+                    "HOT BRAKES — Brakes can be extremely hot after landing; burn risk.",
+                    "WHEEL CHOCKS — Unsecured aircraft can roll; always chock wheels."
+                ],
+                diagram: `<svg viewBox="0 0 200 150">
+                    <rect x="60" y="30" width="6" height="50" fill="none" stroke="#4da6ff" stroke-width="2"/>
+                    <ellipse cx="63" cy="90" rx="15" ry="10" fill="none" stroke="#4da6ff" stroke-width="2"/>
+                    <rect x="130" y="30" width="6" height="60" fill="none" stroke="#4da6ff" stroke-width="2"/>
+                    <ellipse cx="133" cy="100" rx="18" ry="12" fill="none" stroke="#4da6ff" stroke-width="2"/>
+                    <text x="40" y="110" fill="#7ab8ed" font-size="8">NOSE GEAR</text>
+                    <text x="115" y="125" fill="#7ab8ed" font-size="8">MAIN GEAR</text>
+                    <circle cx="133" cy="100" r="5" fill="none" stroke="#ff4d4d" stroke-width="1"/>
+                    <text x="150" y="95" fill="#ff4d4d" font-size="7">BRAKE</text>
+                </svg>`
+            }
+        };
+
+        function openModal(partId) {
+            const data = partsData[partId];
+            if (!data) return;
+
+            document.getElementById('modalTitle').textContent = data.title;
+            document.getElementById('partDescription').textContent = data.description;
+            document.getElementById('partDiagram').innerHTML = data.diagram;
+            
+            const componentsList = document.getElementById('partComponents');
+            componentsList.innerHTML = data.components.map(c => `<li>${c}</li>`).join('');
+            
+            const hazardsList = document.getElementById('partHazards');
+            hazardsList.innerHTML = data.hazards.map(h => `<li>${h}</li>`).join('');
+
+            document.getElementById('modalOverlay').classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal(event) {
+            if (event && event.target !== document.getElementById('modalOverlay')) return;
+            document.getElementById('modalOverlay').classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        // Close modal with Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>
